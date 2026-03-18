@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="../global-styles.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../supabase-init.js"></script>
+  <script src="../staff-auth.js"></script>
+  <script>
+    (function() {
+      function check() {
+        if (typeof canAccessAdmin !== 'function') return setTimeout(check, 50);
+        if (!canAccessAdmin() || !isStaffLoggedIn()) {
+          location.href = '../home.html?error=' + encodeURIComponent('Please log in with admin access');
+          return;
+        }
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', check);
+      else check();
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="admin-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>Admin Dashboard</h1>
+      </div>
+      <nav>
+        <button onclick="showPage('menu')" class="active">
+          <span class="icon">📋</span> Menu Management
+        </button>
+        <button onclick="showPage('promos')">
+          <span class="icon">🎡</span> Promos
+        </button>
+        <button onclick="showPage('bookings')">
+          <span class="icon">📅</span> Bookings
+        </button>
+        <button onclick="showPage('sales')">
+          <span class="icon">💰</span> Sales
+        </button>
+        <button onclick="showPage('analytics')">
+          <span class="icon">📊</span> Analytics
+        </button>
+        <button onclick="showPage('reports')">
+          <span class="icon">📑</span> Reports
+        </button>
+        <button onclick="showPage('monitorings')">
+          <span class="icon">📊</span> Monitorings
+        </button>
+        <button onclick="showPage('settings')">
+          <span class="icon">⚙️</span> Settings
+        </button>
+        <button onclick="showPage('staff')" id="navStaff">
+          <span class="icon">👤</span> Staff
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div id="staffNameDisplay"></div>
+        <button onclick="staffLogout()" class="logout-button">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <!-- STAFF MANAGEMENT PAGE -->
+      <div id="staff" class="page" style="display:none">
+        <h2>Staff Management</h2>
+        <div id="staffMessage"></div>
+        <p class="description" style="margin-bottom: 16px;">Register new staff accounts. System Admin cannot be removed.</p>
+        <div class="form-section staff-registration-form">
+          <h3>Register Staff</h3>
+          <div class="form-row compact-row">
+            <div class="form-group">
+              <label>ID Number</label>
+              <input type="text" id="regStaffId" placeholder="e.g. CASH001" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" id="regStaffName" placeholder="Full name" class="form-control">
+            </div>
+          </div>
+          <div class="form-row compact-row">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="regStaffUsername" placeholder="Username" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="regStaffEmail" placeholder="Email" class="form-control">
+            </div>
+          </div>
+          <div class="form-row compact-row">
+            <div class="form-group">
+              <label>Password (min 6 characters)</label>
+              <div class="password-input-wrapper">
+                <input type="password" id="regStaffPassword" placeholder="Password" class="form-control">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Role</label>
+              <select id="regStaffRole" class="form-control">
+                <option value="admin">Admin</option>
+                <option value="cashier">Cashier</option>
+                <option value="kitchen_staff">Kitchen Staff</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button onclick="registerStaffSubmit()" class="btn-primary">Register Staff</button>
+          </div>
+        </div>
+        <div class="form-section staff-list-section">
+          <div class="staff-list-header">
+            <h3 style="margin:0;">Current Staff</h3>
+            <button id="toggleStaffArchiveBtn" class="btn-secondary" onclick="toggleStaffArchiveView()">Show Archived</button>
+          </div>
+          <div id="staffListContainer"></div>
+        </div>
+      </div>
+
+      <!-- MONITORINGS PAGE (Admin Logs + Cashier Transactions) -->
+      <div id="monitorings" class="page" style="display:none">
+        <h2>Monitorings</h2>
+        <p class="description" style="margin-bottom: 16px;">Admin activity and cashier transactions. Visible to all admins.</p>
+        
+        <nav class="monitorings-tabs">
+          <button onclick="showMonitoringsTab('adminLogs')" id="monTabAdminLogs" class="mon-tab active">Admin Logs</button>
+          <button onclick="showMonitoringsTab('cashier')" id="monTabCashier" class="mon-tab">Cashier Transactions</button>
+        </nav>
+
+        <div id="monitoringsAdminLogs" class="monitorings-panel">
+          <div class="form-section" style="margin-bottom: 16px;">
+            <div class="form-row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+              <label style="font-weight:600; color: var(--coffee-dark);">Admin:</label>
+              <select id="adminLogsUser" onchange="loadAdminLogs()" class="form-control" style="max-width: 220px;">
+                <option value="">All Admins</option>
+              </select>
+              <input type="date" id="adminLogsStart" onchange="loadAdminLogs()" placeholder="00/00/0000">
+              <input type="date" id="adminLogsEnd" onchange="loadAdminLogs()" placeholder="00/00/0000">
+              <button onclick="loadAdminLogs()" class="btn-secondary">Refresh</button>
+            </div>
+          </div>
+          <div id="adminLogsContainer"></div>
+        </div>
+
+        <div id="monitoringsCashier" class="monitorings-panel" style="display:none;">
+          <div class="form-section" style="margin-bottom: 16px;">
+            <div class="form-row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+              <label style="font-weight:600; color: var(--coffee-dark);">Period:</label>
+              <select id="cashierMonitorRange" onchange="applyCashierMonitorRange()" class="form-control" style="max-width: 160px;">
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <label style="font-weight:600; color: var(--coffee-dark);">Cashier:</label>
+              <select id="cashierMonitorUser" onchange="loadCashierMonitoring()" class="form-control" style="max-width: 220px;">
+                <option value="">All Cashiers</option>
+              </select>
+              <input type="date" id="cashierMonitorStart" onchange="loadCashierMonitoring()" placeholder="00/00/0000">
+              <input type="date" id="cashierMonitorEnd" onchange="loadCashierMonitoring()" placeholder="00/00/0000">
+              <button onclick="loadCashierMonitoring()" class="btn-secondary">Refresh</button>
+            </div>
+          </div>
+          <div id="cashierMonitorSummary" style="margin-bottom:16px;"></div>
+          <div id="cashierMonitorDaily" style="margin-bottom:16px;"></div>
+          <div id="cashierMonitorContainer"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div id="settings" class="page" style="display:none">
+        <h2>Settings</h2>
+        <div id="settingsMessage"></div>
+        <div class="form-section">
+          <h3>Online Payment Setup</h3>
+          <p class="description">Upload your QR Code (GCash/Maya) for customers to scan during checkout.</p>
+          
+          <div class="form-group" style="max-width: 500px;">
+            <label for="adminQrCode">Payment QR Code</label>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+              <input type="file" id="adminQrCode" accept="image/*" onchange="previewAdminQr(this)">
+            </div>
+            
+            <div class="preview-box" style="border: 2px dashed #ddd; padding: 20px; text-align: center; border-radius: 8px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+              <img id="adminQrPreview" src="" alt="QR Code Preview" style="max-width: 100%; max-height: 300px; display: none;">
+              <div id="adminQrPlaceholder" style="color: #888;">
+                <span style="font-size: 24px; display: block; margin-bottom: 10px;">📷</span>
+                No QR Code Uploaded
+              </div>
+            </div>
+            
+            <div style="margin-top: 15px;">
+              <button onclick="savePaymentSettings()" class="btn-primary">Save Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MENU PAGE -->
+      <div id="menu" class="page">
+        <div class="menu-header">
+          <h2>Menu Management</h2>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button id="toggleAddFormBtn" class="btn-toggle-form" onclick="toggleAddForm()">+ Add New Product</button>
+            <button id="toggleMenuArchiveBtn" class="btn-secondary" onclick="toggleMenuArchiveView()">Show Archived</button>
+          </div>
+        </div>
+        <div id="statusMessage"></div>
+        
+        <!-- Search and Category Filter -->
+        <div class="menu-controls" id="menuControls">
+          <div class="search-box">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="menuSearch" placeholder="Search products..." oninput="searchMenu(this.value)">
+          </div>
+          <div class="category-filter">
+            <button onclick="filterMenuCategory('all', this)" class="active">All</button>
+            <button onclick="filterMenuCategory('1', this)">Coffee</button>
+            <button onclick="filterMenuCategory('2', this)">Non-coffee</button>
+            <button onclick="filterMenuCategory('3', this)">Frappe</button>
+            <button onclick="filterMenuCategory('4', this)">Soda</button>
+            <button onclick="filterMenuCategory('5', this)">Pastries</button>
+          </div>
+        </div>
+
+        <!-- Collapsible Add Product Form -->
+        <div id="addForm" class="form-section add-form-collapsed">
+          <div class="form-header">
+            <h3 id="formTitle">Add New Product</h3>
+            <button class="btn-close-form" onclick="toggleAddForm()">Cancel</button>
+          </div>
+          
+          <div class="add-product-layout">
+            <div class="form-inputs">
+              <div class="form-row compact-row">
+                <div class="form-group">
+                  <label for="category_id">Category<span class="required-mark">*</span></label>
+                  <select id="category_id" onchange="handleCategoryChange()">
+                    <option value="1">Coffee</option>
+                    <option value="2">Non-coffee</option>
+                    <option value="3">Frappe</option>
+                    <option value="4">Soda</option>
+                    <option value="5">Pastries</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="name">Product Name<span class="required-mark">*</span></label>
+                  <input type="text" id="name" placeholder="Name" oninput="updatePreview()">
+                </div>
+              </div>
+              
+              <div class="form-row compact-row">
+                <div class="form-group">
+                  <label for="size">Size<span class="required-mark">*</span></label>
+                  <input type="text" id="size" list="sizeList" placeholder="Select/Type Size" oninput="updatePreview()">
+                  <datalist id="sizeList">
+                    <!-- Populated by JS -->
+                  </datalist>
+                </div>
+                <div class="form-group">
+                  <label for="price">Price (PHP)<span class="required-mark">*</span></label>
+                  <input type="number" id="price" placeholder="0.00" min="0" oninput="updatePreview()">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="product_photo">Photo<span class="required-mark">*</span></label>
+                <input type="file" id="product_photo" accept="image/*" onchange="previewImage(this)">
+              </div>
+
+              <div class="form-actions">
+                <button id="addBtn" class="btn-primary" onclick="saveProduct()">Add Product</button>
+                <button id="updateBtn" class="btn-secondary" onclick="updateVariant()" style="display:none">Save Changes</button>
+                <button id="cancelBtn" class="btn-secondary" style="display:none" onclick="toggleAddForm()">Cancel</button>
+                <input type="hidden" id="editDocId">
+              </div>
+            </div>
+
+            <div class="preview-section">
+              <h4>Preview</h4>
+              <div class="product-card preview-card">
+                <div class="product-header">
+                  <div class="product-photo-container">
+                    <img id="previewImage" src="" alt="Preview" class="product-photo" style="display:none;">
+                    <div id="previewNoImage" class="no-photo">No Photo</div>
+                  </div>
+                  <div class="product-info">
+                    <span class="product-category" id="previewCategory">Coffee</span>
+                    <h4 class="product-name" id="previewName">Product Name</h4>
+                  </div>
+                </div>
+                <div class="sizes-list">
+                  <div class="sizes-header">
+                    <span>Size</span>
+                    <span>Price</span>
+                  </div>
+                  <div class="size-row">
+                    <span class="size-label" id="previewSize">Size</span>
+                    <span class="size-price" id="previewPrice">₱0.00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Product List grouped by name -->
+        <div id="menuList"></div>
+      </div>
+
+
+  <!-- PROMOS PAGE -->
+  <div id="promos" class="page" style="display:none">
+    <h2>Promo Management</h2>
+    <div id="promoStatusMessage"></div>
+    <div id="promoForm" class="form-section">
+      <div class="form-row" style="flex-direction: column; align-items: stretch;">
+        <div class="form-group">
+            <label for="promoTitle">Promo Title:</label>
+            <input type="text" id="promoTitle" placeholder="Enter promo title..." autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-top: 10px;">
+            <label for="promoUntil">Valid Until:</label>
+            <input type="date" id="promoUntil" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div class="form-group" style="margin-top: 10px;">
+            <label for="promoContent">Promo Details:</label>
+            <textarea id="promoContent" placeholder="Enter promo details..." rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+        </div>
+        <div class="form-actions" style="margin-top: 10px;">
+            <button id="addPromoBtn" class="btn-primary">Add Promo</button>
+            <button id="updatePromoBtn" class="btn-secondary" style="display:none">Update Promo</button>
+            <button id="cancelPromoBtn" class="btn-secondary" style="display:none">Cancel</button>
+            <input type="hidden" id="promoEditId">
+        </div>
+      </div>
+    </div>
+    <table id="promoTable">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Details</th>
+          <th>Valid Until</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="promoBody"></tbody>
+    </table>
+  </div>
+
+  <!-- CUSTOMER BOOKINGS PAGE -->
+  <div id="bookings" class="page bookings-page" style="display:none">
+    <h2>Bookings Management</h2>
+    
+    <div class="bookings-layout">
+      <!-- LEFT SIDE: All Bookings -->
+      <div class="bookings-left-panel">
+        <!-- Filter controls for bookings -->
+        <div class="booking-filters">
+          <div class="filter-row" style="margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div class="filter-group">
+              <label>Filter by Status:</label>
+              <select id="bookingStatusFilter" onchange="renderBookingsList()">
+                <option value="all">All Active</option>
+                <option value="accepted">Accepted</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Type:</label>
+              <select id="bookingTypeFilter" onchange="renderBookingsList()">
+                <option value="all" selected>All</option>
+                <option value="booking">Bookings</option>
+                <option value="preorder">Pre-orders</option>
+              </select>
+            </div>
+            <div class="filter-group" style="flex: 1; min-width: 200px;">
+              <input type="text" id="bookingSearch" placeholder="Search customer, ID, or items..." onkeyup="renderBookingsList()" class="form-control" style="width: 100%;">
+            </div>
+            <button onclick="renderBookingsList()" class="btn-primary" style="padding: 8px 16px;">Refresh</button>
+          </div>
+          <div id="pendingWarning" style="display:none; background-color: #fff3cd; color: #856404; padding: 10px; margin-top: 10px; border-radius: 4px; border: 1px solid #ffeeba;">
+            <strong>⚠️ Warning:</strong> You have pending bookings waiting for confirmation!
+          </div>
+        </div>
+
+        <h3>All Bookings</h3>
+        <div class="bookings-table-wrapper">
+          <table id="bookingsTable">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Payment</th>
+                <th>Items/Details</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bookingsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE: Calendar -->
+      <div class="bookings-right-panel">
+        <div class="calendar-container">
+          <h3>Calendar</h3>
+          <div id="calendarNav">
+            <button onclick="prevMonth()" class="btn-secondary">← Prev</button>
+            <span id="monthYear"></span>
+            <button onclick="nextMonth()" class="btn-secondary">Next →</button>
+          </div>
+          <table id="calendar" class="calendar-table">
+            <thead>
+              <tr>
+                <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
+              </tr>
+            </thead>
+            <tbody id="calendarBody"></tbody>
+          </table>
+        </div>
+
+        <div id="todoSection" class="form-section" style="display:none; margin-top: 20px;">
+          <h3>Note Pad for <span id="selectedDateDisplay"></span></h3>
+          <div class="form-row">
+            <input type="text" id="todoInput" placeholder="Add a note..." disabled style="flex: 1;">
+            <button id="addTodoBtn" onclick="addTodo()" class="btn-primary" disabled>Add</button>
+          </div>
+          <table id="todoTable">
+            <thead>
+              <tr>
+                <th>Note</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="todoBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESCHEDULE MODAL -->
+  <div id="rescheduleModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="max-width:400px;">
+      <h3>Reschedule Booking</h3>
+      <div class="form-group">
+        <label>New Date</label>
+        <input type="date" id="rescheduleDate">
+      </div>
+      <div class="form-group">
+        <label>New Time</label>
+        <input type="time" id="rescheduleTime">
+      </div>
+      <div class="form-actions" style="margin-top:15px; display:flex; justify-content:flex-end; gap:10px;">
+        <button onclick="closeRescheduleModal()" class="btn-secondary">Cancel</button>
+        <button onclick="confirmReschedule()" class="btn-primary">Save Changes</button>
+      </div>
+      <input type="hidden" id="rescheduleBookingId">
+    </div>
+  </div>
+
+  <!-- REJECT MODAL -->
+  <div id="rejectModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="max-width:450px;">
+      <h3>Reject Booking</h3>
+      <div class="form-group">
+        <label style="font-weight:600; margin-bottom:12px; display:block;">Select Reason for Rejection</label>
+        <div class="reject-reasons-group">
+          <label class="reject-reason-option">
+            <input type="radio" name="rejectReason" value="Fully Booked" onchange="updateRejectReason()">
+            <span class="radio-label">Fully Booked</span>
+          </label>
+          <label class="reject-reason-option">
+            <input type="radio" name="rejectReason" value="Closed" onchange="updateRejectReason()">
+            <span class="radio-label">Closed / Holiday</span>
+          </label>
+          <label class="reject-reason-option">
+            <input type="radio" name="rejectReason" value="Scheduling Conflict" onchange="updateRejectReason()">
+            <span class="radio-label">Scheduling Conflict</span>
+          </label>
+          <label class="reject-reason-option">
+            <input type="radio" name="rejectReason" value="Other" onchange="updateRejectReason()">
+            <span class="radio-label">Other</span>
+          </label>
+        </div>
+        <input type="text" id="rejectReasonOther" placeholder="Enter your custom reason..." style="display:none; width:100%; padding:10px; margin-top:12px; border:2px solid var(--border-color); border-radius:6px;">
+      </div>
+      <div class="form-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <button onclick="closeRejectModal()" class="btn-secondary" style="padding:10px 20px;">Cancel</button>
+        <button onclick="confirmReject()" class="btn-danger" style="padding:10px 20px;">Confirm Rejection</button>
+      </div>
+      <input type="hidden" id="rejectBookingId">
+    </div>
+  </div>
+
+  <!-- ANALYTICS PAGE -->
+  <div id="analytics" class="page" style="display:none">
+    <h2>Sales Analytics</h2>
+    <div class="analytics-tabs">
+      <button class="analytics-tab-btn active" data-tab="overview">Overview</button>
+      <button class="analytics-tab-btn" data-tab="product">By Product (In-Depth)</button>
+    </div>
+    <div id="analyticsOverviewTab" class="analytics-tab-content active">
+      <div class="analytics-controls">
+      <div class="analytics-filters">
+        <label>
+          Range
+          <select id="anInterval" onchange="runDashboard()">
+            <option value="day">Daily</option>
+            <option value="week" selected>Weekly</option>
+            <option value="month">Monthly</option>
+            <option value="quarter">Quarterly</option>
+            <option value="semiannual">Semi-Annual</option>
+            <option value="annual">Annual</option>
+          </select>
+        </label>
+        <label>
+          Source
+          <select id="anSource" onchange="runDashboard()">
+            <option value="all" selected>All</option>
+            <option value="sales">POS Sales</option>
+            <option value="orders">Line Items</option>
+            <option value="pending">Kiosk (Completed)</option>
+          </select>
+        </label>
+        <label>
+          Start
+          <input type="date" id="anStart">
+        </label>
+        <label>
+          End
+          <input type="date" id="anEnd">
+        </label>
+        <label>
+          Category mode
+          <select id="catMode" onchange="runDashboard()">
+            <option value="amount" selected>By Amount</option>
+            <option value="quantity">By Quantity</option>
+          </select>
+        </label>
+        <label>
+          Chart type
+          <select id="descType" disabled>
+            <option value="line" selected>Line</option>
+          </select>
+        </label>
+        <button class="btn-primary" onclick="runDashboard()">Refresh</button>
+      </div>
+      <div class="analytics-kpis">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Sales</div>
+          <div class="kpi-value" id="kpiTotal">₱0.00</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Items</div>
+          <div class="kpi-value" id="kpiQty">0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg / Day</div>
+          <div class="kpi-value" id="kpiAvg">₱0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="analytics-grid">
+      <div class="chart-container">
+        <h3>Sales Trend</h3>
+        <div class="canvas-wrapper">
+          <canvas id="analyticsDescriptiveChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-container">
+        <h3 id="forecastTitle">Next 7 Days Forecast</h3>
+        <div class="canvas-wrapper">
+          <canvas id="analyticsPredictiveChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-container">
+        <h3>Sales by Category</h3>
+        <div class="canvas-wrapper">
+          <canvas id="analyticsCategoryChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-container">
+        <h3>Time-Based Analysis (When the Cafe is Active)</h3>
+        <div class="canvas-wrapper">
+          <canvas id="analyticsTimeAnalysisChart"></canvas>
+        </div>
+        <div id="timeAnalysisInsights" style="margin-top: 16px; padding: 12px; background: #f5f5f5; border-radius: 6px; font-size: 0.9em;"></div>
+      </div>
+    </div>
+    <div class="chart-container" style="margin-top: 16px;">
+      <h3>Recommendations</h3>
+      <div id="analyticsOverviewRecommendations" style="margin-top: 10px; padding: 12px; background: #fffbe6; border-left: 3px solid #d4a574; border-radius: 6px; color:#333; font-size: 0.95rem;"></div>
+    </div>
+    </div>
+    <div id="analyticsProductTab" class="analytics-tab-content">
+      <div class="analytics-product-section">
+        <div class="analytics-product-header-row">
+          <div class="analytics-product-header-main">
+            <h3>Per Product Analytics</h3>
+            <div class="analytics-product-subtitle">Descriptive, predictive, and prescriptive insights for a single product.</div>
+          </div>
+          <div class="analytics-product-metrics" id="analyticsProductHeaderMetrics" style="display:none;">
+            <div class="analytics-chip" id="analyticsMetricPeriod"></div>
+            <div class="analytics-chip" id="analyticsMetricQty"></div>
+            <div class="analytics-chip" id="analyticsMetricRevenue"></div>
+          </div>
+        </div>
+        <div class="analytics-product-filters">
+          <label>
+            Product
+            <select id="anProduct" onchange="runDashboard()">
+              <option value="">All Products</option>
+            </select>
+          </label>
+          <label>
+            Forecast View
+            <select id="anProductForecastInterval" onchange="runDashboard()">
+              <option value="day" selected>Daily</option>
+              <option value="week">Weekly</option>
+              <option value="month">Monthly</option>
+            </select>
+          </label>
+          <div class="analytics-product-filters-hint">
+            Choose a product here to see its trend below.
+          </div>
+        </div>
+        <div class="analytics-product-grid">
+          <div class="chart-container">
+            <h3>Descriptive: Product Sales Over Time</h3>
+            <div class="canvas-wrapper">
+              <canvas id="analyticsProductTrendChart"></canvas>
+              <div id="analyticsProductTrendEmpty" class="analytics-empty-state">
+                Select a product above to see its daily, weekly, or monthly trend.
+              </div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <h3 id="productForecastTitle">Product Forecast</h3>
+            <div class="canvas-wrapper">
+              <canvas id="analyticsProductForecastChart"></canvas>
+              <div id="analyticsProductForecastEmpty" class="analytics-empty-state">
+                Select a product and forecast view to see its projected sales.
+              </div>
+            </div>
+            <div id="analyticsProductForecastSummary" class="analytics-forecast-summary"></div>
+          </div>
+        </div>
+        <div class="chart-container analytics-product-bottom-card">
+          <div class="analytics-product-bottom-header">
+            <h3>Top Products (by Revenue)</h3>
+          </div>
+          <div class="analytics-product-bottom-grid">
+            <div class="analytics-product-bottom-chart">
+              <div class="canvas-wrapper">
+                <canvas id="analyticsProductChart"></canvas>
+              </div>
+            </div>
+            <div class="analytics-product-bottom-table">
+              <table id="analyticsProductTable">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Qty Sold</th>
+                    <th>Avg Price</th>
+                    <th>Total Revenue</th>
+                    <th>% of Sales</th>
+                  </tr>
+                </thead>
+                <tbody id="analyticsProductBody"></tbody>
+              </table>
+              <div id="analyticsProductInsights" style="margin-top: 8px; font-size: 0.9rem; color: #444; background:#fffbe6; border-left:3px solid #d4a574; padding:8px 10px; border-radius:4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SALES PAGE -->
+  <div id="sales" class="page" style="display:none">
+    <h2>Sales Management</h2>
+    
+    <div class="sales-tabs">
+      <button onclick="showSalesTab('overall')" id="tabSalesOverall" class="sales-tab active">Overall Sales</button>
+      <button onclick="showSalesTab('products')" id="tabSalesProducts" class="sales-tab">Product Performance</button>
+    </div>
+
+    <div id="salesOverallPanel" class="sales-panel">
+      <div class="form-section">
+        <div class="form-row">
+          <select id="salesMode" onchange="renderSales()">
+            <option value="day" selected>By Day</option>
+            <option value="week">By Week</option>
+            <option value="month">By Month</option>
+            <option value="quarter">By Quarter</option>
+            <option value="semiannual">By Semi-Annual</option>
+            <option value="annual">By Annual</option>
+          </select>
+          <input type="date" id="salesStart" placeholder="Start Date" onchange="renderSales()">
+          <input type="date" id="salesEnd" placeholder="End Date" onchange="renderSales()">
+          <button onclick="downloadSalesCSV()" class="btn-secondary">Download CSV</button>
+        </div>
+      </div>
+      <table id="salesTable">
+        <thead>
+          <tr id="salesHeadRow"></tr>
+        </thead>
+        <tbody id="salesBody"></tbody>
+      </table>
+    </div>
+
+    <div id="salesProductsPanel" class="sales-panel" style="display:none;">
+      <div class="form-section">
+        <div class="form-row">
+          <select id="productSalesMode" onchange="handleProductSalesModeChange()">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="custom" selected>Custom Range</option>
+          </select>
+          <input type="date" id="productSalesStart" onchange="renderProductSales()">
+          <input type="date" id="productSalesEnd" onchange="renderProductSales()">
+          <button onclick="renderProductSales()" class="btn-primary">Refresh</button>
+          <button onclick="downloadProductSalesCSV()" class="btn-secondary">Download CSV</button>
+        </div>
+      </div>
+      <table id="productSalesTable">
+        <thead>
+          <tr>
+            <th style="text-align: left;">Date</th>
+            <th style="text-align: left;">Product Name</th>
+            <th style="text-align: center;">Quantity Sold</th>
+            <th style="text-align: right;">Total Amount</th>
+          </tr>
+        </thead>
+        <tbody id="productSalesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- REPORTS PAGE -->
+  <div id="reports" class="page" style="display:none">
+    <h2>Sales Reports</h2>
+    <div class="form-section">
+      <div class="form-row">
+        <div class="report-type-label" style="font-weight:700; padding: 12px 0;">By Transaction</div>
+        <input type="date" id="repStart" placeholder="Start Date" onchange="renderReports()">
+        <input type="date" id="repEnd" placeholder="End Date" onchange="renderReports()">
+        <button onclick="downloadReportsCSV()" class="btn-secondary">Download CSV</button>
+      </div>
+      
+      <!-- Report KPIs -->
+      <div class="analytics-kpis" style="margin-top:20px; padding-top:20px; border-top:1px solid #eee;">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Sales</div>
+          <div class="kpi-value" id="repKpiTotal">₱0.00</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label" id="repKpiLabel2">Total Transactions</div>
+          <div class="kpi-value" id="repKpiValue2">0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label" id="repKpiLabel3">Avg Transaction</div>
+          <div class="kpi-value" id="repKpiValue3">₱0.00</div>
+        </div>
+      </div>
+    </div>
+    
+    <h3 id="repTableTitle">Transaction Log</h3>
+    <table id="repItem">
+      <thead id="repItemHead">
+        <tr><th>Date/Time</th><th>Order ID</th><th>Items Count</th><th>Total Amount</th><th>Status</th></tr>
+      </thead>
+      <tbody id="repItemBody"></tbody>
+    </table>
+  </div>
+  </main>
+  </div>
+
+  <script type="module" src="admin.main.js?v=4"></script>
+  <script src="admin-analytics.js?v=4"></script>
+
+  <script>
+    // Helper functions (getWeekKey, etc.) are available globally from admin-analytics.js
+  </script>
+</body>
+</html>

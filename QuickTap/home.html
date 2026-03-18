@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QuickTap - Tori Cafeteria</title>
+  <link rel="stylesheet" href="global-styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-init.js"></script>
+  <script src="staff-auth.js"></script>
+  <style>
+    /* Updated customer-first landing page design */
+    body { 
+      background: linear-gradient(135deg, var(--bg-light) 0%, #ede7e0 100%);
+      color: var(--text-dark);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      max-width: 1200px;
+      width: 100%;
+      align-items: center;
+    }
+
+    .left-section {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .logo {
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--coffee-dark);
+    }
+
+    .tagline {
+      font-size: 18px;
+      color: var(--coffee-medium);
+      font-weight: 500;
+    }
+
+    .location-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px;
+      background: rgba(212, 165, 116, 0.1);
+      border-left: 4px solid var(--accent-warm);
+      border-radius: 8px;
+    }
+
+    .location-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--coffee-medium);
+    }
+
+    .location-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--coffee-dark);
+    }
+
+    /* Customer auth form - primary focus */
+    .auth-form {
+      background: var(--cream);
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+      border: 2px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--coffee-dark);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .form-subtitle {
+      font-size: 13px;
+      text-align: center;
+      color: var(--coffee-medium);
+      margin-bottom: 16px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--coffee-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .input-field {
+      padding: 13px 15px;
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-light);
+      color: var(--text-dark);
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent-warm);
+      box-shadow: 0 0 0 4px rgba(212, 165, 116, 0.1);
+    }
+
+    .input-field.error {
+      border-color: var(--danger);
+      background-color: rgba(217, 83, 79, 0.05);
+    }
+
+    .required-mark {
+      color: var(--danger);
+      margin-left: 4px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: var(--accent-warm);
+      color: var(--coffee-dark);
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .btn:hover {
+      background: #c89968;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(212, 165, 116, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--coffee-dark);
+      border: 2px solid var(--accent-warm);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+      width: 100%;
+      padding: 14px;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(212, 165, 116, 0.1);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(212, 165, 116, 0.1);
+    }
+
+    .btn-guest {
+      background: transparent;
+      color: var(--coffee-medium);
+      border: 2px solid var(--border-color);
+      padding: 12px 24px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-guest:hover {
+      background: var(--bg-light);
+      color: var(--coffee-dark);
+      border-color: var(--coffee-dark);
+      transform: translateY(-2px);
+    }
+
+    .message {
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .message.success {
+      background: rgba(95, 184, 120, 0.1);
+      color: var(--success);
+      display: block;
+    }
+
+    .message.error {
+      background: rgba(217, 83, 79, 0.1);
+      color: var(--danger);
+      display: block;
+    }
+
+    /* Staff login section */
+    .staff-section {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      margin-top: 24px;
+    }
+
+    .staff-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--coffee-medium);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .staff-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .staff-input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      background: white;
+      color: var(--text-dark);
+      box-sizing: border-box;
+    }
+
+    .staff-input:focus {
+      outline: none;
+      border-color: var(--accent-warm);
+    }
+
+    .staff-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .staff-row .staff-input { flex: 1; }
+
+    .staff-btn {
+      padding: 10px 16px;
+      background: var(--accent-warm);
+      color: var(--coffee-dark);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .staff-btn:hover {
+      background: #c89968;
+      transform: translateY(-1px);
+    }
+
+    .staff-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .staff-setup-note {
+      font-size: 11px;
+      color: var(--coffee-medium);
+      margin-top: 4px;
+    }
+
+    /* Right section - Map */
+    .right-section {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .map-container {
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+      border: 2px solid var(--border-color);
+      height: 450px;
+      background: var(--bg-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .map-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .map-info {
+      background: var(--cream);
+      padding: 20px;
+      border-radius: 12px;
+      border: 2px solid var(--border-color);
+    }
+
+    .map-info-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--coffee-dark);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .map-info-text {
+      font-size: 13px;
+      color: var(--coffee-medium);
+      line-height: 1.6;
+    }
+
+    /* Responsive design */
+    @media (max-width: 1024px) {
+      .container {
+        max-width: 900px;
+        gap: 32px;
+      }
+
+      .logo {
+        font-size: 40px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 20px;
+        align-items: flex-start; /* Better for mobile scrolling */
+      }
+
+      .container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .left-section {
+        order: 1; /* Form first on mobile */
+      }
+
+      .right-section {
+        order: 2;
+      }
+
+      .map-container {
+        height: 350px;
+      }
+
+      .logo {
+        font-size: 36px;
+      }
+
+      .form-title {
+        font-size: 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 16px;
+      }
+
+      .container {
+        gap: 24px;
+      }
+
+      .logo {
+        font-size: 28px;
+      }
+
+      .tagline {
+        font-size: 16px;
+      }
+
+      .auth-form {
+        padding: 24px;
+      }
+
+      .map-container {
+        height: 250px;
+      }
+      
+      .input-field {
+        font-size: 16px; /* Prevent zoom on iOS */
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="left-section">
+      <div class="brand">
+        <div class="logo">QuickTap</div>
+        <div class="tagline">Fast orders. Smart analytics.</div>
+        <div class="location-info">
+          <div class="location-label">📍 Visit Us At</div>
+          <div class="location-name">TORI Cafeteria</div>
+        </div>
+      </div>
+
+      <div class="auth-form">
+        <div class="form-title" id="formTitle">Login</div>
+        <div class="form-subtitle" id="formSubtitle">Enter your credentials to login</div>
+        
+        <div class="input-group">
+          <label class="input-label">Email <small>(or Phone)</small></label>
+          <input id="custEmail" placeholder="your@email.com" class="input-field" type="email">
+        </div>
+        
+        <div class="input-group">
+          <label class="input-label">Phone <small>(or Email)</small></label>
+          <input id="custPhone" placeholder="+63 9XX XXX XXXX" class="input-field" type="tel">
+          <small id="phoneError" style="color: #d9534f; font-size: 11px; display: none;">Please enter a valid Philippine phone number</small>
+        </div>
+        
+        <div class="input-group" id="nameGroup" style="display: none;">
+          <label class="input-label">Full Name<span class="required-mark">*</span></label>
+          <input id="custName" placeholder="Your name" class="input-field">
+          <small id="nameError" style="color: #d9534f; font-size: 11px; display: none;">Name can only contain letters, numbers, spaces, hyphens, apostrophes, and periods (e.g., John Jr., Maria-Cruz)</small>
+        </div>
+
+        <div class="input-group" id="passwordGroup">
+          <label class="input-label">Password<span class="required-mark">*</span></label>
+          <input id="custPassword" placeholder="Enter password" class="input-field" type="password">
+          <small id="passwordError" style="color: #d9534f; font-size: 11px; display: none;">Password must be at least 6 characters</small>
+        </div>
+
+        <div id="authButtons" class="btn-group" style="display: none;">
+          <button onclick="registerCustomer()" class="btn" id="registerBtn">Register</button>
+          <button onclick="switchToLogin()" class="btn-secondary" id="switchLoginBtn">Already have an account? Login</button>
+        </div>
+
+        <div id="loginButtons" class="btn-group">
+          <button onclick="loginCustomer()" class="btn" id="loginBtn">Login</button>
+          <button onclick="switchToRegister()" class="btn-secondary" id="switchRegisterBtn">Don't have an account yet? Register</button>
+        </div>
+        
+        <button onclick="continueAsGuest()" class="btn-guest">Continue as Guest</button>
+        
+        <div id="msg" class="message"></div>
+
+        <div class="staff-section">
+          <label class="staff-label">Staff Access</label>
+          <div id="staffSetupForm" class="staff-form" style="display: none;">
+            <input id="staffSetupId" class="staff-input" placeholder="ID Number" type="text">
+            <input id="staffSetupName" class="staff-input" placeholder="Full Name" type="text">
+            <input id="staffSetupPassword" class="staff-input" placeholder="Password (min 6 chars)" type="password">
+            <button class="staff-btn" onclick="submitStaffSetup()">Create System Admin</button>
+            <span class="staff-setup-note">First-time setup: create the system admin account.</span>
+          </div>
+          <div id="staffLoginForm" class="staff-form">
+            <div class="staff-row">
+              <input id="staffIdInput" class="staff-input" placeholder="ID Number" type="text">
+              <input id="staffPasswordInput" class="staff-input" placeholder="Password" type="password">
+            </div>
+            <button class="staff-btn" onclick="submitStaffLogin()">Staff Login</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-section">
+      <!-- Updated map image filename to MAPToriCafe.png -->
+      <a href="https://www.google.com/maps/search/?api=1&query=Tori+Cafeteria+Tubao" target="_blank" rel="noopener noreferrer" class="map-link">
+      <div class="map-container">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='450'%3E%3Crect fill='%23f0e8dd' width='400' height='450'/%3E%3Ctext x='50%' y='50%' text-anchor='middle' dy='.3em' font-family='Arial' font-size='16' fill='%23999'%3ETORI Cafeteria Location%3C/text%3E%3C/svg%3E" alt="Map showing Tori Cafeteria location" id="mapImage">
+      </div>
+      </a>
+      <div class="map-info">
+        <div class="map-info-title">📍 Find Us</div>
+        <div class="map-info-text">
+          Located in Poblacion, Tubao, La Union, our cozy cafeteria serves premium coffee and fresh pastries. Open daily for your morning pick-up and afternoon treat!
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  let isLoginMode = true;
+
+  function showMessage(msg, type) {
+    const msgEl = document.getElementById('msg');
+    msgEl.textContent = msg;
+    msgEl.className = 'message ' + type;
+    setTimeout(() => { msgEl.className = 'message'; }, 3500);
+  }
+
+  // Email validation
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  // Philippine phone number validation
+  function isValidPhilippinePhone(phone) {
+    // Accept formats: 09XX XXX XXXX, +639XX XXX XXXX, 9XX XXX XXXX, 9175551234
+    const phoneRegex = /^(?:\+?63|0)?9\d{9}$/;
+    const cleanPhone = phone.replace(/\s+/g, '');
+    return phoneRegex.test(cleanPhone);
+  }
+
+  // Password validation
+  function isValidPassword(password) {
+    return password.length >= 6;
+  }
+
+  // Name validation - Allow letters, spaces, numbers, and common suffixes (Sr., Jr., etc.)
+  function isValidName(name) {
+    // Allow: letters (a-z, A-Z), spaces, numbers, periods, hyphens, and apostrophes
+    // This covers: "John Doe", "Juan dela Cruz", "Mary Jane Watson", "John Jr.", "Maria Sr.", "Anne-Marie", "O'Brien", "José María", "John 3rd"
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\d\.\-']+$/;
+    return nameRegex.test(name) && name.length >= 2;
+  }
+
+  function switchToRegister() {
+    isLoginMode = false;
+    document.getElementById('formTitle').textContent = 'Create Account';
+    document.getElementById('formSubtitle').textContent = 'Sign up to start ordering';
+    document.getElementById('nameGroup').style.display = 'flex';
+    document.getElementById('passwordGroup').style.display = 'flex';
+    document.getElementById('authButtons').style.display = 'flex';
+    document.getElementById('loginButtons').style.display = 'none';
+    document.getElementById('custEmail').value = '';
+    document.getElementById('custPhone').value = '';
+    document.getElementById('custName').value = '';
+    document.getElementById('custPassword').value = '';
+    document.getElementById('msg').className = 'message';
+  }
+
+  function switchToLogin() {
+    isLoginMode = true;
+    document.getElementById('formTitle').textContent = 'Login';
+    document.getElementById('formSubtitle').textContent = 'Enter your credentials to login';
+    document.getElementById('nameGroup').style.display = 'none';
+    document.getElementById('passwordGroup').style.display = 'flex';
+    document.getElementById('authButtons').style.display = 'none';
+    document.getElementById('loginButtons').style.display = 'flex';
+    document.getElementById('custEmail').value = '';
+    document.getElementById('custPhone').value = '';
+    document.getElementById('custName').value = '';
+    document.getElementById('custPassword').value = '';
+    document.getElementById('msg').className = 'message';
+  }
+
+  function registerCustomer() {
+    const emailInput = document.getElementById('custEmail');
+    const phoneInput = document.getElementById('custPhone');
+    const nameInput = document.getElementById('custName');
+    const passwordInput = document.getElementById('custPassword');
+
+    const email = emailInput.value.trim();
+    const phone = phoneInput.value.trim();
+    const name = nameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    // Reset errors
+    emailInput.classList.remove('error');
+    phoneInput.classList.remove('error');
+    nameInput.classList.remove('error');
+    passwordInput.classList.remove('error');
+
+    // Validate email if provided
+    if (email && !isValidEmail(email)) {
+      showMessage('Please enter a valid email address', 'error');
+      emailInput.classList.add('error');
+      return;
+    }
+
+    // Validate phone if provided
+    if (phone && !isValidPhilippinePhone(phone)) {
+      document.getElementById('phoneError').style.display = 'block';
+      phoneInput.classList.add('error');
+      setTimeout(() => {
+        document.getElementById('phoneError').style.display = 'none';
+      }, 3500);
+      return;
+    }
+
+    // Check if email or phone is provided
+    if (!email && !phone) {
+      showMessage('Please enter email or phone number', 'error');
+      emailInput.classList.add('error');
+      phoneInput.classList.add('error');
+      return;
+    }
+
+    // Check if name is provided
+    if (!name) {
+      showMessage('Please enter your full name', 'error');
+      nameInput.classList.add('error');
+      return;
+    }
+
+    // Validate name format
+    if (!isValidName(name)) {
+      document.getElementById('nameError').style.display = 'block';
+      nameInput.classList.add('error');
+      setTimeout(() => {
+        document.getElementById('nameError').style.display = 'none';
+      }, 3500);
+      return;
+    }
+
+    // Validate password
+    if (!isValidPassword(password)) {
+      document.getElementById('passwordError').style.display = 'block';
+      passwordInput.classList.add('error');
+      setTimeout(() => {
+        document.getElementById('passwordError').style.display = 'none';
+      }, 3500);
+      return;
+    }
+
+    showMessage('Creating account...', 'success');
+    const contact = email || phone;
+    setTimeout(() => {
+      window.location.href = 'customer/customer.html?action=register&email=' + encodeURIComponent(email) + '&phone=' + encodeURIComponent(phone) + '&name=' + encodeURIComponent(name) + '&password=' + encodeURIComponent(password) + '&contact=' + encodeURIComponent(contact);
+    }, 500);
+  }
+
+  function loginCustomer() {
+    const emailInput = document.getElementById('custEmail');
+    const phoneInput = document.getElementById('custPhone');
+    const passwordInput = document.getElementById('custPassword');
+
+    const email = emailInput.value.trim();
+    const phone = phoneInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    // Reset errors
+    emailInput.classList.remove('error');
+    phoneInput.classList.remove('error');
+    passwordInput.classList.remove('error');
+
+    // Validate email if provided
+    if (email && !isValidEmail(email)) {
+      showMessage('Please enter a valid email address', 'error');
+      emailInput.classList.add('error');
+      return;
+    }
+
+    // Validate phone if provided
+    if (phone && !isValidPhilippinePhone(phone)) {
+      document.getElementById('phoneError').style.display = 'block';
+      phoneInput.classList.add('error');
+      setTimeout(() => {
+        document.getElementById('phoneError').style.display = 'none';
+      }, 3500);
+      return;
+    }
+
+    // Check if email or phone is provided
+    if (!email && !phone) {
+      showMessage('Please enter email or phone number', 'error');
+      emailInput.classList.add('error');
+      phoneInput.classList.add('error');
+      return;
+    }
+
+    // Check password
+    if (!password) {
+      showMessage('Please enter your password', 'error');
+      passwordInput.classList.add('error');
+      return;
+    }
+
+    showMessage('Logging in...', 'success');
+    const contact = email || phone;
+    setTimeout(() => {
+      window.location.href = 'customer/customer.html?action=login&email=' + encodeURIComponent(email) + '&phone=' + encodeURIComponent(phone) + '&password=' + encodeURIComponent(password) + '&contact=' + encodeURIComponent(contact);
+    }, 500);
+  }
+
+  function continueAsGuest() {
+    showMessage('Starting as guest...', 'success');
+    setTimeout(() => {
+      window.location.href = 'customer/customer.html?guest=true';
+    }, 500);
+  }
+
+  async function initStaffForm() {
+    if (!window.getDB || !window.needsStaffSetup) return;
+    if (!window.dbReady) { setTimeout(initStaffForm, 200); return; }
+    const db = getDB();
+    if (!db) { setTimeout(initStaffForm, 200); return; }
+    const needsSetup = await needsStaffSetup();
+    const setupForm = document.getElementById('staffSetupForm');
+    const loginForm = document.getElementById('staffLoginForm');
+    if (setupForm && loginForm) {
+      setupForm.style.display = needsSetup ? 'flex' : 'none';
+      loginForm.style.display = needsSetup ? 'none' : 'flex';
+    }
+  }
+
+  async function submitStaffSetup() {
+    const id = document.getElementById('staffSetupId').value.trim();
+    const name = document.getElementById('staffSetupName').value.trim();
+    const pwd = document.getElementById('staffSetupPassword').value;
+    if (!id || !name || !pwd) {
+      showMessage('Please fill ID number, full name, and password', 'error');
+      return;
+    }
+    if (pwd.length < 6) {
+      showMessage('Password must be at least 6 characters', 'error');
+      return;
+    }
+    try {
+      await staffRegisterSystemAdmin(id, name, pwd);
+      showMessage('System admin created. Redirecting to login...', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } catch (e) {
+      showMessage(e.message || 'Setup failed', 'error');
+    }
+  }
+
+  async function submitStaffLogin() {
+    const id = document.getElementById('staffIdInput').value.trim();
+    const pwd = document.getElementById('staffPasswordInput').value;
+    if (!id || !pwd) {
+      showMessage('Please enter ID number and password', 'error');
+      return;
+    }
+    try {
+      const r = await staffLogin(id, pwd);
+      if (!r.ok) {
+        showMessage(r.message || 'Login failed', 'error');
+        return;
+      }
+      const role = r.staff.role;
+      if (role === 'system_admin' || role === 'admin') {
+        window.location.href = 'admin/index.html';
+      } else if (role === 'cashier') {
+        window.location.href = 'cashier/cashier.html';
+      } else if (role === 'kitchen_staff') {
+        window.location.href = 'kitchen/kitchen.html';
+      } else {
+        showMessage('No access configured for your role', 'error');
+        clearStaffSession();
+      }
+    } catch (e) {
+      showMessage(e.message || 'Login failed', 'error');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initStaffForm();
+    const staffIdEl = document.getElementById('staffIdInput');
+    const staffPwdEl = document.getElementById('staffPasswordInput');
+    if (staffIdEl) staffIdEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitStaffLogin(); });
+    if (staffPwdEl) staffPwdEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitStaffLogin(); });
+    // Check for error messages in URL
+    const params = new URLSearchParams(window.location.search);
+    const errorMsg = params.get('error');
+    if (errorMsg) {
+      showMessage(decodeURIComponent(errorMsg), 'error');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Load map image
+    setTimeout(() => {
+      const mapImg = document.getElementById('mapImage');
+      if (mapImg) {
+        mapImg.src = 'public/images/MAPToriCafe.png';
+        mapImg.onerror = () => {
+          console.log('[v0] Map image not found, using placeholder');
+        };
+      }
+    }, 300);
+
+    // Add real-time email validation
+    document.getElementById('custEmail').addEventListener('blur', () => {
+      const emailInput = document.getElementById('custEmail');
+      const email = emailInput.value.trim();
+      if (email && !isValidEmail(email)) {
+        showMessage('Invalid email format', 'error');
+        emailInput.classList.add('error');
+      } else {
+        emailInput.classList.remove('error');
+      }
+    });
+
+    // Add real-time phone validation
+    document.getElementById('custPhone').addEventListener('blur', () => {
+      const phoneInput = document.getElementById('custPhone');
+      const phone = phoneInput.value.trim();
+      if (phone && !isValidPhilippinePhone(phone)) {
+        document.getElementById('phoneError').style.display = 'block';
+        phoneInput.classList.add('error');
+        setTimeout(() => {
+          document.getElementById('phoneError').style.display = 'none';
+        }, 3000);
+      } else {
+        phoneInput.classList.remove('error');
+      }
+    });
+
+    // Add real-time name validation
+    document.getElementById('custName').addEventListener('blur', () => {
+      const nameInput = document.getElementById('custName');
+      const name = nameInput.value.trim();
+      if (name && !isValidName(name)) {
+        document.getElementById('nameError').style.display = 'block';
+        nameInput.classList.add('error');
+        setTimeout(() => {
+          document.getElementById('nameError').style.display = 'none';
+        }, 3000);
+      } else {
+        nameInput.classList.remove('error');
+      }
+    });
+  });
+</script>
+</body>
+</html>

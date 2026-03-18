@@ -1,0 +1,18 @@
+-- Add archive columns to support soft-delete/restore workflows.
+-- Run in Supabase SQL Editor.
+
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+
+ALTER TABLE staff
+  ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+
+ALTER TABLE pending_orders
+  ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
